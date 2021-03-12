@@ -35,9 +35,8 @@ restaurante_schema = Restaurante_Schema()
 restaurantes_schema = Restaurante_Schema(many=True)
 imagen_schema = Imagen_Schema()
 
-
-class RecursosRestaurante(Resource):
-	
+class RecursoNuevoRestaurante(Resource):
+	# Crear un nuevo restaurante
 	@jwt_required()
 	def post(self):
 		nuevo_restaurante = Restaurante(
@@ -53,8 +52,31 @@ class RecursosRestaurante(Resource):
 		db.session.commit()
 		return restaurante_schema.dump(nuevo_restaurante)
 
+class RecursoBorrarRestaurante(Resource):
+	# Eliminar un restaurante existente
+	@jwt_required()
+	def delete(self, restaurante_id):
+		# name = request.json['name']
+		# restaurante = Restaurante.query.filter_by(name=name).first()
+		restaurante = Restaurante.query.filter_by(id=restaurante_id).first()
+		if restaurante and restaurante.owner == get_jwt_identity()[0]:
+			db.session.delete(restaurante)
+			db.session.commit()
+			return jsonify(restaurante_schema.dump(restaurante))
+		else:
+			return "El restaurante a eliminar no existe o no es el dueño"
+
+class RecursoRestaurante(Resource):
+	# Retornar todos los restaurantes del usuario actual
 	@jwt_required()
 	def get(self):
+		owner = get_jwt_identity()[0]
+		restaurantes = Restaurante.query.filter_by(owner=owner)
+		return restaurantes_schema.dump(restaurantes)
+	
+	# Buscar restaurantes creados por nombre
+	@jwt_required()
+	def post(self):
 		name = request.json['name']
 		restaurante = Restaurante.query.filter_by(name=name).first()
 		if restaurante and restaurante.owner == get_jwt_identity()[0]:
@@ -62,6 +84,7 @@ class RecursosRestaurante(Resource):
 		else:
 		  return "El restaurante a detallar no existe o no es el dueño"
 
+	# Modificar un restaurante existente
 	@jwt_required()
 	def put(self):
 		name = request.json['name']
@@ -91,27 +114,8 @@ class RecursosRestaurante(Resource):
 		else:
 			return "El restaurante a editar no existe o no es el dueño"
 
-	@jwt_required()
-	def delete(self):
-		name = request.json['name']
-		restaurante = Restaurante.query.filter_by(name=name).first()
-		if restaurante and restaurante.owner == get_jwt_identity()[0]:
-			db.session.delete(restaurante)
-			db.session.commit()
-			return jsonify(restaurante_schema.dump(restaurante))
-		else:
-			return "El restaurante a eliminar no existe o no es el dueño"
-
-class RecursosOwner(Resource):
-	
-	@jwt_required()
-	def get(self):
-		owner = get_jwt_identity()[0]
-		restaurantes = Restaurante.query.filter_by(owner=owner)
-		return restaurantes_schema.dump(restaurantes)
-
-class RecursosUsuario(Resource):
-
+class RecursoRegistro(Resource):
+	# Registrar un nuevo usuario
 	def post(self):
 		nuevo_usuario = Usuario(
 			email = request.json['email'],
@@ -121,9 +125,9 @@ class RecursosUsuario(Resource):
 		db.session.commit()
 		return restaurante_schema.dump(nuevo_usuario)
 
-class Login(Resource):
-
-	def get(self):
+class RecursoLogin(Resource):
+	# Recibir token de autenticación para hacer login
+	def post(self):
 		email = request.json['email'],
 		password = request.json['password']
 		value = authenticate(email, password)
@@ -132,8 +136,8 @@ class Login(Resource):
 		else:
 		  return "Correo electrónico o contraseña incorrectos"
 
-class RecursoArchivo(Resource):
-
+class RecursoNuevoArchivo(Resource):
+	# Subir nueva imagen para restaurante
 	@jwt_required()
 	def post(self, restaurante_id):
 		restaurante = Restaurante.query.filter_by(id=restaurante_id).first()
@@ -157,9 +161,25 @@ class RecursoArchivo(Resource):
 				return imagen_schema.dump(nueva_imagen)
 		else:
 			return "El restaurante no existe o usted no es dueño de él"
-
+	
+class RecursoArchivo(Resource):
+	# Obtener enlace a imagen de restaurante
 	@jwt_required()
-	def delete(self, restaurante_id):
+	def post(self, restaurante_id):
+		restaurante = Restaurante.query.filter_by(id=restaurante_id).first()
+		if restaurante and restaurante.owner == get_jwt_identity()[0]:
+			filename = request.json['file']
+			file = Imagen.query.filter_by(filename=filename).first()
+			if file:
+				return "https://storage.googleapis.com/flask-bucket-app/{}/{}/{}".format(file.owner, file.restaurant, file.filename)
+			else:
+				return "Archivo inexistente"
+		else:
+			return "El restaurante no existe o usted no es el dueño de él"
+
+	# Eliminar imagen de restaurante
+	@jwt_required()
+	def put(self, restaurante_id):
 		restaurante = Restaurante.query.filter_by(id=restaurante_id).first()
 		if restaurante and restaurante.owner == get_jwt_identity()[0]:
 			filename = request.json['file']
@@ -179,25 +199,15 @@ class RecursoArchivo(Resource):
 		else:
 			return "El restaurante no existe o usted no es el dueño de él"
 
-	@jwt_required()
-	def get(self, restaurante_id):
-		restaurante = Restaurante.query.filter_by(id=restaurante_id).first()
-		if restaurante and restaurante.owner == get_jwt_identity()[0]:
-			filename = request.json['file']
-			file = Imagen.query.filter_by(filename=filename).first()
-			if file:
-				return "https://storage.googleapis.com/flask-bucket-app/{}/{}/{}".format(file.owner, file.restaurant, file.filename)
-			else:
-				return "Archivo inexistente"
-		else:
-			return "El restaurante no existe o usted no es el dueño de él"
+api.add_resource(RecursoRestaurante, '/restaurante')
+api.add_resource(RecursoNuevoRestaurante, '/restaurante/nuevo')
+api.add_resource(RecursoBorrarRestaurante, '/restaurante/<int:restaurante_id>')
 
+api.add_resource(RecursoRegistro, '/registro')
+api.add_resource(RecursoLogin, '/login')
 
-api.add_resource(RecursosRestaurante, '/restaurante')
-api.add_resource(RecursosUsuario, '/registrar')
-api.add_resource(Login, '/login')
-api.add_resource(RecursosOwner, '/mis_restaurantes')
-api.add_resource(RecursoArchivo, '/<int:restaurante_id>/menu')
+api.add_resource(RecursoArchivo, '/restaurante/<int:restaurante_id>/archivo')
+api.add_resource(RecursoNuevoArchivo, '/restaurante/<int:restaurante_id>/archivo/nuevo')
 
 # Execution
 if __name__ == '__main__':
