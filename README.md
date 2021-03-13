@@ -5,5 +5,9 @@ Estudiantes:
 - Josue Peña Atencio
 - Jeffrey Steven García Gallego
 
-### api_flask
-API REST para un servicio de restaurantes desplegado en Google Cloud Platform haciendo uso de grupos de autoescalado, base de datos SQL de GCP y balanceo de carga.
+#### api_flask:
+API REST para una aplicación web de restaurantes desplegado en Google Cloud Platform haciendo uso de servicios de GCP:
+- Grupo de autoescalado horizontal Compute Engine
+- Base de datos SQL GCP
+- Cloud Storage Bucket
+- Elastic Load Balancing GCP
